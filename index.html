@@ -1,112 +1,523 @@
-<!-- UPDATED VERSION WITH ANALYTICS, LEADERBOARD & SHARE -->
-<!-- Paste your Firebase config + Google Analytics where marked -->
-
 <!DOCTYPE html>
 <html lang="he">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gefilte Invaders</title>
-
-<!-- GOOGLE ANALYTICS -->
-<!-- Replace G-XXXX with your ID -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>
-<script>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);} 
-gtag('js', new Date());
-gtag('config', 'G-XXXX');
-</script>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eran Dvir - Design to Empower | Gefilte Fish Invaders</title>
 <style>
-body { margin:0; background:#000; color:#fff; font-family:Courier New; text-align:center; }
-#leaderboard { margin-top:20px; font-size:14px; }
-#leaderboard div { margin:4px 0; }
-input { padding:8px; margin-top:10px; }
-button { padding:10px 20px; margin-top:10px; cursor:pointer; }
-#shareBtn { background:#25D366; color:#000; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: #000; overflow: hidden; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; touch-action: none; }
+#gameContainer { position: relative; }
+canvas { display: block; }
+#startScreen, #gameOverScreen {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.92); z-index: 10;
+}
+#gameOverScreen { display: none; }
+.btn {
+  background: transparent; border: 2px solid #f07020; color: #f07020;
+  font-family: 'Courier New', monospace; font-size: 18px; padding: 14px 36px;
+  cursor: pointer; letter-spacing: 2px; margin-top: 20px;
+  -webkit-appearance: none; appearance: none; border-radius: 0;
+  touch-action: manipulation; user-select: none;
+}
+.btn:active { background: #f07020; color: #000; }
+#touchControls {
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 120px;
+  display: none; z-index: 5;
+}
+#btnLeft, #btnRight {
+  position: absolute; bottom: 10px; width: 120px; height: 90px;
+  background: rgba(240,112,32,0.12); border: 2px solid rgba(240,112,32,0.5);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: rgba(240,112,32,0.85);
+  user-select: none; touch-action: manipulation;
+}
+#btnLeft { left: 10px; }
+#btnRight { left: 140px; }
+#btnShoot {
+  position: absolute; bottom: 10px; right: 10px; width: 120px; height: 90px;
+  background: rgba(255,215,0,0.15); border: 2px solid rgba(255,215,0,0.5);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: rgba(255,215,0,0.9);
+  user-select: none; touch-action: manipulation; flex-direction: column; gap: 4px;
+  font-family: 'Courier New', monospace;
+}
 </style>
 </head>
-
 <body>
+<div id="gameContainer">
+  <canvas id="c"></canvas>
 
-<h1>Gefilte Invaders</h1>
+  <div id="startScreen">
+    <canvas id="logo" width="460" height="120"></canvas>
+    <div style="color:#f07020;font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;margin-top:6px;">ERAN DVIR — DESIGN TO EMPOWER</div>
+    <div style="color:#555;font-family:'Courier New',monospace;font-size:9px;letter-spacing:2px;margin-top:3px;">© TAITO SCHMALTZ CORP — ALL RIGHTS RESERVED</div>
+    <div style="color:#fff;font-family:'Courier New',monospace;font-size:11px;margin-top:22px;letter-spacing:1px;text-align:center;line-height:2;">
+      ARROW KEYS / WASD = MOVE &nbsp;|&nbsp; SPACE = SHOOT<br>
+      <span style="color:#FFD700;">3 LIVES &nbsp;|&nbsp; SURVIVE THE MEGA GEFILTE</span>
+    </div>
+    <button class="btn" id="startBtn">INSERT COIN</button>
+    <div style="color:#444;font-family:'Courier New',monospace;font-size:10px;margin-top:16px;">HIGH SCORE: <span id="hiScore">0</span></div>
+  </div>
 
-<div id="game"></div>
+  <div id="gameOverScreen">
+    <div style="color:#ff0000;font-family:'Courier New',monospace;font-size:32px;letter-spacing:4px;">GAME OVER</div>
+    <div style="color:#FFD700;font-family:'Courier New',monospace;font-size:20px;letter-spacing:3px;margin-top:12px;">&amp; CHAG SAMEACH!</div>
+    <div style="color:#f07020;font-family:'Courier New',monospace;font-size:11px;margin-top:10px;letter-spacing:2px;">ERAN DVIR — DESIGN TO EMPOWER</div>
+    <div style="color:#fff;font-family:'Courier New',monospace;font-size:14px;margin-top:18px;">SCORE: <span id="finalScore">0</span></div>
+    <button class="btn" id="restartBtn">PLAY AGAIN</button>
+  </div>
 
-<div id="gameOver" style="display:none;">
-  <h2>Game Over</h2>
-  <div>Score: <span id="finalScore"></span></div>
-
-  <input id="playerName" placeholder="השם שלך" />
-  <br>
-  <button onclick="saveScore()">שמור תוצאה</button>
-
-  <div id="leaderboard"></div>
-
-  <button id="shareBtn" onclick="shareGame()">שתף בוואטסאפ</button>
+  <div id="touchControls">
+    <div id="btnLeft">&#9664;</div>
+    <div id="btnRight">&#9654;</div>
+    <div id="btnShoot"><span style="font-size:22px;">FIRE</span></div>
+  </div>
 </div>
 
-<!-- FIREBASE -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script>
+(function(){
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var logoCanvas = document.getElementById('logo');
+  var logoCtx = logoCanvas.getContext('2d');
 
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT",
-};
+  var GW = 820, GH = 620;
+  canvas.width = GW; canvas.height = GH;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  function resize(){
+    var s = Math.min(window.innerWidth / GW, window.innerHeight / GH);
+    canvas.style.width  = Math.floor(GW * s) + 'px';
+    canvas.style.height = Math.floor(GH * s) + 'px';
+    var cont = document.getElementById('gameContainer');
+    cont.style.width  = canvas.style.width;
+    cont.style.height = canvas.style.height;
+    var tc = document.getElementById('touchControls');
+    tc.style.width  = canvas.style.width;
+    tc.style.height = '120px';
+  }
+  resize();
+  window.addEventListener('resize', resize);
 
-window.saveScore = async function() {
-  const name = document.getElementById('playerName').value;
-  const score = window.finalScore || 0;
+  // Logo
+  function drawLogo(){
+    logoCtx.clearRect(0,0,460,120);
+    var gr = logoCtx.createLinearGradient(0,0,460,0);
+    gr.addColorStop(0,'#f07020'); gr.addColorStop(0.45,'#fff'); gr.addColorStop(1,'#f07020');
+    logoCtx.font = 'bold 34px "Courier New"'; logoCtx.textAlign='center';
+    logoCtx.fillStyle = gr; logoCtx.fillText('GEFILTE FISH',230,44);
+    logoCtx.font='bold 28px "Courier New"'; logoCtx.fillStyle='#FFD700';
+    logoCtx.fillText('INVADERS',230,82);
+    logoCtx.strokeStyle='#f07020'; logoCtx.lineWidth=2;
+    logoCtx.strokeRect(4,4,452,112); logoCtx.strokeRect(9,9,442,102);
+  }
+  drawLogo();
 
-  if (!name) return alert('הכנס שם');
+  // Audio
+  var audioCtx = null;
+  function initAudio(){
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+  }
+  function playShoot(){
+    if(!audioCtx)return;
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.setValueAtTime(900,audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(200,audioCtx.currentTime+0.09);
+    g.gain.setValueAtTime(0.2,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.09);
+    o.start(); o.stop(audioCtx.currentTime+0.09);
+  }
+  function playExplosion(){
+    if(!audioCtx)return;
+    var buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*0.25),audioCtx.sampleRate);
+    var d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+    var s=audioCtx.createBufferSource(),g=audioCtx.createGain();
+    s.buffer=buf; s.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.35,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.25);
+    s.start();
+  }
+  function playOyVey(){
+    if(!audioCtx)return;
+    [330,294,277,294].forEach(function(f,i){
+      var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type='sawtooth'; o.frequency.value=f;
+      var t=audioCtx.currentTime+i*0.13;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.18,t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.13);
+      o.start(t); o.stop(t+0.13);
+    });
+  }
+  function playHit(){
+    if(!audioCtx)return;
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type='square'; o.frequency.value=130;
+    g.gain.setValueAtTime(0.4,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.35);
+    o.start(); o.stop(audioCtx.currentTime+0.35);
+  }
+  var yiddishInterval=null;
+  function startMusic(){
+    if(!audioCtx)return;
+    var scale=[261,293,311,349,392,415,440,523];
+    var mel=[4,3,2,1,2,3,4,4,4,4,3,3,3,3,4,6,6,4,3,2,1,2,3,4,4,4,4,3,3,4,3,2];
+    var idx=0;
+    yiddishInterval=setInterval(function(){
+      if(!audioCtx)return;
+      var o=audioCtx.createOscillator(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();
+      f.type='lowpass'; f.frequency.value=1600;
+      o.type='square'; o.connect(f); f.connect(g); g.connect(audioCtx.destination);
+      o.frequency.value=scale[mel[idx++%mel.length]];
+      g.gain.setValueAtTime(0.06,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.18);
+      o.start(); o.stop(audioCtx.currentTime+0.2);
+    },200);
+  }
+  function stopMusic(){ if(yiddishInterval){ clearInterval(yiddishInterval); yiddishInterval=null; } }
 
-  await addDoc(collection(db, 'scores'), {
-    name,
-    score,
-    date: Date.now()
+  // Draw functions
+  function drawMatzaShip(x,y,size){
+    ctx.save(); ctx.translate(x,y);
+    var bw=size*2.4, bh=size*1.1;
+    // Square matzah body (rect with slight corner softness)
+    ctx.fillStyle='#f5e9c0';
+    ctx.fillRect(-bw/2,-bh/2,bw,bh);
+    // Matzah dot holes
+    ctx.fillStyle='#c9a850';
+    for(var r=0;r<3;r++) for(var c=0;c<7;c++){
+      ctx.beginPath();
+      ctx.arc(-bw*0.38+c*(bw*0.76/6),-bh*0.28+r*(bh*0.56/2),1.4,0,Math.PI*2);
+      ctx.fill();
+    }
+    // Score lines
+    for(var ri=0;ri<2;ri++){
+      ctx.beginPath(); ctx.moveTo(-bw*0.44,-bh*0.12+ri*bh*0.25); ctx.lineTo(bw*0.44,-bh*0.12+ri*bh*0.25);
+      ctx.strokeStyle='#d4a840'; ctx.lineWidth=0.8; ctx.stroke();
+    }
+    // Outline — sharp rect
+    ctx.strokeStyle='#a07828'; ctx.lineWidth=2;
+    ctx.strokeRect(-bw/2,-bh/2,bw,bh);
+    // Cannon — orange, square
+    ctx.fillStyle='#f07020'; ctx.fillRect(-3,-bh/2-12,6,14);
+    ctx.fillStyle='#d05010'; ctx.fillRect(-5,-bh/2-22,10,12);
+    // Engine glow underneath — orange
+    ctx.fillStyle='rgba(240,112,32,0.4)';
+    ctx.fillRect(-8,bh/2,16,6);
+    ctx.restore();
+  }
+
+  function drawFish(x,y,w,h,alpha,wobble){
+    ctx.save(); ctx.globalAlpha=alpha; ctx.translate(x,y);
+    ctx.beginPath(); ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
+    var bg=ctx.createRadialGradient(-w*0.1,-h*0.1,w*0.05,0,0,w*0.55);
+    bg.addColorStop(0,'#f5e8d0'); bg.addColorStop(0.6,'#e8d4b0'); bg.addColorStop(1,'#c9b08a');
+    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='#a08060'; ctx.lineWidth=1; ctx.stroke();
+    for(var i=0;i<5;i++){
+      ctx.beginPath(); ctx.moveTo(-w*0.3+i*w*0.15,-h*0.3); ctx.lineTo(-w*0.25+i*w*0.15,h*0.3);
+      ctx.strokeStyle='rgba(150,120,80,0.3)'; ctx.lineWidth=0.5; ctx.stroke();
+    }
+    var cx=(wobble||0)*0.5, cy=-h*0.06, cr=Math.min(w,h)*0.20;
+    ctx.beginPath(); ctx.arc(cx,cy,cr,0,Math.PI*2);
+    ctx.fillStyle='#f07020'; ctx.fill(); ctx.strokeStyle='#c05010'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx+cr*0.15,cy-cr*0.12,cr*0.38,0,Math.PI*2);
+    ctx.fillStyle='#f8a050'; ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBoss(x,y,w,h,time,flash){
+    ctx.save(); ctx.translate(x,y);
+    var pulse=Math.sin(time*0.05)*0.04+1; ctx.scale(pulse,pulse);
+    ctx.beginPath(); ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
+    var bg=ctx.createRadialGradient(-w*0.1,-h*0.1,w*0.05,0,0,w*0.55);
+    bg.addColorStop(0,'#ffe8c0'); bg.addColorStop(0.5,'#f0c880'); bg.addColorStop(1,'#c8903a');
+    ctx.fillStyle=flash>0?'#fff':bg; ctx.fill();
+    ctx.strokeStyle='#804010'; ctx.lineWidth=2.5; ctx.stroke();
+    if(!flash){
+      for(var i=0;i<9;i++){
+        ctx.beginPath(); ctx.moveTo(-w*0.4+i*w*0.1,-h*0.42); ctx.lineTo(-w*0.35+i*w*0.1,h*0.42);
+        ctx.strokeStyle='rgba(120,80,20,0.22)'; ctx.lineWidth=0.8; ctx.stroke();
+      }
+    }
+    var cr=Math.min(w,h)*0.18, cw=Math.sin(time*0.07)*3;
+    ctx.beginPath(); ctx.arc(cw,0,cr,0,Math.PI*2);
+    ctx.fillStyle=flash>0?'#ff8800':'#f06818'; ctx.fill();
+    ctx.strokeStyle='#903008'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cw+cr*0.2,-cr*0.2,cr*0.35,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,180,80,0.7)'; ctx.fill();
+    for(var j=-1;j<=1;j++){
+      ctx.beginPath(); ctx.moveTo(cw+j*cr*0.25,-cr*0.9);
+      ctx.quadraticCurveTo(cw+j*cr*0.5+4,-cr*1.7,cw+j*cr*0.4,-cr*2.1);
+      ctx.strokeStyle='#4a9a30'; ctx.lineWidth=2; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawJelly(x,y,r,alpha){
+    ctx.save(); ctx.globalAlpha=alpha*0.85;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle='rgba(195,225,200,0.38)'; ctx.fill();
+    ctx.strokeStyle='rgba(160,210,170,0.75)'; ctx.lineWidth=1; ctx.stroke();
+    for(var i=0;i<3;i++){
+      var a=(i/3)*Math.PI*2;
+      ctx.beginPath(); ctx.arc(x+Math.cos(a)*r*0.4,y+Math.sin(a)*r*0.4,r*0.15,0,Math.PI*2);
+      ctx.fillStyle='rgba(220,245,225,0.55)'; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawHeart(x,y,size,color){
+    ctx.save(); ctx.translate(x,y); ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(0,size*0.3);
+    ctx.bezierCurveTo(-size*0.5,-size*0.1,-size,size*0.1,-size*0.5,size*0.6);
+    ctx.bezierCurveTo(-size*0.25,size*0.85,0,size*0.95,0,size*0.95);
+    ctx.bezierCurveTo(0,size*0.95,size*0.25,size*0.85,size*0.5,size*0.6);
+    ctx.bezierCurveTo(size,size*0.1,size*0.5,-size*0.1,0,size*0.3);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
+  // Game vars
+  var ROWS=4,COLS=10,FW=50,FH=28,GX=64,GY=44,SX=58,SY=85,MAXLIVES=3;
+  var state='start', score=0, hiScore=0, lives=MAXLIVES;
+  var player={x:GW/2,y:GH-52,speed:5};
+  var bullets=[],eBullets=[],enemies=[],particles=[],oyTexts=[];
+  var boss=null, bossPhase=false, frame=0, eDir=1, eSpeed=0.45;
+  var keys={}, shootCD=0, eShootT=0, hitFlash=0, invincible=0;
+
+  var stars=[];
+  for(var si=0;si<90;si++) stars.push({x:Math.random()*GW,y:Math.random()*GH,b:Math.random()});
+
+  function drawStars(){
+    stars.forEach(function(s){
+      var br=0.3+0.5*Math.abs(Math.sin(frame*0.011+s.b*10));
+      ctx.fillStyle='rgba(255,255,255,'+br*0.5+')';
+      ctx.fillRect(s.x,s.y,1,1);
+    });
+  }
+
+  function initEnemies(){
+    enemies=[];
+    for(var r=0;r<ROWS;r++) for(var c=0;c<COLS;c++)
+      enemies.push({x:SX+c*GX,y:SY+r*GY,alive:true,wobble:0,wobbleDir:1});
+    eDir=1; eSpeed=0.4; bossPhase=false; boss=null;
+  }
+
+  function spawnBoss(){
+    bossPhase=true;
+    boss={x:GW/2,y:130,w:210,h:115,dir:1,speed:1.4,hits:0,angry:false,flash:0,descending:false,shootT:0,timer:0};
+  }
+
+  function spawnJelly(x,y){
+    for(var i=0;i<13;i++){
+      var a=(i/13)*Math.PI*2+Math.random()*0.3, sp=1.6+Math.random()*2.6;
+      particles.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:7+Math.random()*15,alpha:0.85});
+    }
+  }
+
+  function loseLife(){
+    if(invincible>0)return;
+    lives--; playHit(); hitFlash=40; invincible=120;
+    if(lives<=0) showGameOver();
+  }
+
+  function gameLoop(){
+    if(state!=='playing')return;
+    frame++;
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,GW,GH);
+    drawStars();
+    if(invincible>0)invincible--; if(hitFlash>0)hitFlash--;
+
+    if(keys['left'])  player.x=Math.max(24,player.x-player.speed);
+    if(keys['right']) player.x=Math.min(GW-24,player.x+player.speed);
+    if(keys['shoot']&&shootCD<=0){ bullets.push({x:player.x,y:player.y-22,speed:11}); playShoot(); shootCD=16; }
+    if(shootCD>0)shootCD--;
+
+    if(!bossPhase){
+      var minX=GW,maxX=0,alive=0;
+      enemies.forEach(function(e){
+        if(!e.alive)return; alive++;
+        e.x+=eDir*eSpeed;
+        e.wobble+=0.05*e.wobbleDir; if(Math.abs(e.wobble)>1.5)e.wobbleDir*=-1;
+        if(e.x<minX)minX=e.x; if(e.x>maxX)maxX=e.x;
+      });
+      if(maxX>GW-32||minX<32){
+        eDir*=-1; enemies.forEach(function(e){if(e.alive)e.y+=16;});
+        eSpeed=Math.min(eSpeed+0.05,3.8);
+      }
+      if(alive===0)spawnBoss();
+      eShootT++;
+      if(eShootT>Math.max(20,65-score/80)){
+        var al=enemies.filter(function(e){return e.alive;});
+        if(al.length>0){ var sh=al[Math.floor(Math.random()*al.length)]; eBullets.push({x:sh.x,y:sh.y+14,speed:3+Math.random()*2}); }
+        eShootT=0;
+      }
+      enemies.forEach(function(e){
+        if(!e.alive)return;
+        if(e.y+FH/2>GH-65){loseLife();e.alive=false;return;}
+        drawFish(e.x,e.y,FW,FH,1,e.wobble);
+      });
+    } else {
+      if(boss)updateBoss();
+    }
+
+    bullets=bullets.filter(function(b){
+      b.y-=b.speed; if(b.y<0)return false;
+      ctx.fillStyle='#FFD700'; ctx.fillRect(b.x-2,b.y,4,12);
+      if(!bossPhase){
+        for(var i=enemies.length-1;i>=0;i--){
+          var e=enemies[i]; if(!e.alive)continue;
+          if(Math.abs(b.x-e.x)<FW/2&&Math.abs(b.y-e.y)<FH/2){
+            e.alive=false; spawnJelly(e.x,e.y);
+            oyTexts.push({x:e.x,y:e.y-20,alpha:1,vy:-1.3,timer:85});
+            playExplosion(); playOyVey(); score+=10; return false;
+          }
+        }
+      } else if(boss&&!boss.descending){
+        if(Math.abs(b.x-boss.x)<boss.w/2&&Math.abs(b.y-boss.y)<boss.h/2){
+          boss.hits++; boss.flash=7; boss.angry=boss.hits>15; return false;
+        }
+      }
+      return true;
+    });
+
+    eBullets=eBullets.filter(function(b){
+      b.y+=b.speed; if(b.y>GH)return false;
+      ctx.fillStyle='#ff4444'; ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fill();
+      if(invincible<=0&&Math.abs(b.x-player.x)<16&&Math.abs(b.y-player.y)<16){loseLife();return false;}
+      return true;
+    });
+
+    particles=particles.filter(function(p){
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.alpha-=0.012;
+      if(p.alpha<=0)return false; drawJelly(p.x,p.y,p.r,p.alpha); return true;
+    });
+
+    oyTexts=oyTexts.filter(function(t){
+      t.y+=t.vy; t.alpha-=0.012; t.timer--;
+      ctx.save(); ctx.globalAlpha=t.alpha; ctx.font='bold 16px "Courier New"';
+      ctx.fillStyle='#FFD700'; ctx.textAlign='center'; ctx.fillText('אוי ויי!',t.x,t.y); ctx.restore();
+      return t.timer>0;
+    });
+
+    var show=invincible<=0||Math.floor(invincible/5)%2===0;
+    if(show){
+      if(hitFlash>0){ctx.save();ctx.globalAlpha=0.4;drawMatzaShip(player.x,player.y,18);ctx.restore();}
+      else drawMatzaShip(player.x,player.y,18);
+    }
+
+    ctx.fillStyle='#f07020'; ctx.font='14px "Courier New"'; ctx.textAlign='left';
+    ctx.fillText('SCORE: '+score,10,22);
+    ctx.textAlign='center'; ctx.fillStyle='#555'; ctx.font='9px "Courier New"';
+    ctx.fillText('ERAN DVIR — DESIGN TO EMPOWER',GW/2,22);
+    ctx.textAlign='right'; ctx.fillStyle='#f07020'; ctx.font='14px "Courier New"';
+    ctx.fillText('HI: '+Math.max(hiScore,score),GW-10,22);
+    for(var li=0;li<MAXLIVES;li++) drawHeart(18+li*22,GH-20,8,li<lives?'#ff4444':'#333');
+    ctx.strokeStyle='#f07020'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,GH-30); ctx.lineTo(GW,GH-30); ctx.stroke();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  function updateBoss(){
+    boss.shootT++; if(boss.flash>0)boss.flash--;
+    if(boss.descending){
+      boss.y+=1.1;
+      drawBoss(boss.x,boss.y,boss.w,boss.h,frame,0);
+      ctx.font='bold 15px "Courier New"'; ctx.fillStyle='#FFD700'; ctx.textAlign='center';
+      ctx.fillText('THE MEGA GEFILTE DESCENDS',GW/2,44);
+      if(boss.shootT>45){
+        eBullets.push({x:boss.x+(Math.random()-0.5)*boss.w*0.6,y:boss.y+boss.h/2,speed:3+Math.random()*2});
+        boss.shootT=0;
+      }
+      if(boss.y>GH+boss.h+10)showGameOver();
+      return;
+    }
+    boss.x+=boss.dir*boss.speed;
+    if(boss.angry)boss.speed=Math.min(boss.speed+0.002,2.8);
+    if(boss.x>GW-boss.w/2-12||boss.x<boss.w/2+12)boss.dir*=-1;
+    drawBoss(boss.x,boss.y,boss.w,boss.h,frame,boss.flash);
+    ctx.fillStyle=boss.angry?'#ff6622':'#FFD700';
+    ctx.font='bold '+(boss.angry?17:15)+'px "Courier New"'; ctx.textAlign='center';
+    ctx.fillText('THE MEGA GEFILTE',GW/2,44);
+    if(boss.angry){ctx.fillStyle='#ff2222';ctx.font='bold 12px "Courier New"';ctx.fillText('!!! UNSTOPPABLE !!!',GW/2,62);}
+    if(boss.shootT>(boss.angry?30:55)){
+      var sp=boss.angry?3:1;
+      for(var i=-sp;i<=sp;i++){if(!boss.angry&&i!==0)continue;
+        eBullets.push({x:boss.x+i*28,y:boss.y+boss.h/2,speed:boss.angry?4.5:3.2});}
+      boss.shootT=0;
+    }
+    boss.timer++;
+    if(boss.timer>600)boss.descending=true;
+  }
+
+  // Keyboard
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft'||e.key==='a')keys['left']=true;
+    if(e.key==='ArrowRight'||e.key==='d')keys['right']=true;
+    if(e.key===' '||e.key==='ArrowUp'||e.key==='w'){keys['shoot']=true; e.preventDefault();}
+  });
+  document.addEventListener('keyup',function(e){
+    if(e.key==='ArrowLeft'||e.key==='a')keys['left']=false;
+    if(e.key==='ArrowRight'||e.key==='d')keys['right']=false;
+    if(e.key===' '||e.key==='ArrowUp'||e.key==='w')keys['shoot']=false;
   });
 
-  loadLeaderboard();
-};
+  // Touch controls
+  function bindTouch(id, key){
+    var el=document.getElementById(id);
+    el.addEventListener('touchstart',function(e){e.preventDefault();keys[key]=true;},{passive:false});
+    el.addEventListener('touchend',  function(e){e.preventDefault();keys[key]=false;},{passive:false});
+    el.addEventListener('touchcancel',function(e){e.preventDefault();keys[key]=false;},{passive:false});
+    el.addEventListener('mousedown', function(){keys[key]=true;});
+    el.addEventListener('mouseup',   function(){keys[key]=false;});
+  }
+  bindTouch('btnLeft','left');
+  bindTouch('btnRight','right');
+  bindTouch('btnShoot','shoot');
 
-async function loadLeaderboard() {
-  const q = query(collection(db, 'scores'), orderBy('score','desc'), limit(10));
-  const snapshot = await getDocs(q);
+  function startGame(){
+    initAudio();
+    hiScore=Math.max(hiScore,score);
+    score=0; lives=MAXLIVES; player.x=GW/2;
+    bullets=[]; eBullets=[]; particles=[]; oyTexts=[];
+    frame=0; hitFlash=0; invincible=0;
+    initEnemies(); state='playing';
+    document.getElementById('startScreen').style.display='none';
+    document.getElementById('gameOverScreen').style.display='none';
+    document.getElementById('touchControls').style.display='block';
+    startMusic();
+    requestAnimationFrame(gameLoop);
+  }
 
-  let html = '<h3>🏆 לוח שיאים</h3>';
-  snapshot.forEach(doc => {
-    const d = doc.data();
-    html += `<div>${d.name} — ${d.score}</div>`;
-  });
+  function showGameOver(){
+    if(state!=='playing')return;
+    state='gameover'; hiScore=Math.max(hiScore,score);
+    stopMusic();
+    document.getElementById('touchControls').style.display='none';
+    document.getElementById('finalScore').textContent=score;
+    document.getElementById('hiScore').textContent=hiScore;
+    document.getElementById('gameOverScreen').style.display='flex';
+  }
 
-  document.getElementById('leaderboard').innerHTML = html;
-}
+  function bindBtn(id,fn){
+    var el=document.getElementById(id);
+    el.addEventListener('click',function(e){e.preventDefault();fn();});
+    el.addEventListener('touchend',function(e){e.preventDefault();fn();},{passive:false});
+  }
+  bindBtn('startBtn',startGame);
+  bindBtn('restartBtn',startGame);
 
-window.shareGame = function() {
-  const url = window.location.href;
-  const text = 'שחקו במשחק שלי 🎮';
-  window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`);
-}
-
-window.showGameOverUI = function(score) {
-  window.finalScore = score;
-  document.getElementById('finalScore').innerText = score;
-  document.getElementById('gameOver').style.display = 'block';
-  loadLeaderboard();
-}
-
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,GW,GH);
+  stars.forEach(function(s){ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillRect(s.x,s.y,1,1);});
+})();
 </script>
-
-<!-- IMPORTANT -->
-<!-- בתוך הקוד הקיים שלך, בפונקציה showGameOver(): -->
-<!-- תוסיף: window.showGameOverUI(score); -->
-
 </body>
 </html>
