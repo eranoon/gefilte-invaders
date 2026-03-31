@@ -1,0 +1,112 @@
+<!-- UPDATED VERSION WITH ANALYTICS, LEADERBOARD & SHARE -->
+<!-- Paste your Firebase config + Google Analytics where marked -->
+
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gefilte Invaders</title>
+
+<!-- GOOGLE ANALYTICS -->
+<!-- Replace G-XXXX with your ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);} 
+gtag('js', new Date());
+gtag('config', 'G-XXXX');
+</script>
+
+<style>
+body { margin:0; background:#000; color:#fff; font-family:Courier New; text-align:center; }
+#leaderboard { margin-top:20px; font-size:14px; }
+#leaderboard div { margin:4px 0; }
+input { padding:8px; margin-top:10px; }
+button { padding:10px 20px; margin-top:10px; cursor:pointer; }
+#shareBtn { background:#25D366; color:#000; }
+</style>
+</head>
+
+<body>
+
+<h1>Gefilte Invaders</h1>
+
+<div id="game"></div>
+
+<div id="gameOver" style="display:none;">
+  <h2>Game Over</h2>
+  <div>Score: <span id="finalScore"></span></div>
+
+  <input id="playerName" placeholder="השם שלך" />
+  <br>
+  <button onclick="saveScore()">שמור תוצאה</button>
+
+  <div id="leaderboard"></div>
+
+  <button id="shareBtn" onclick="shareGame()">שתף בוואטסאפ</button>
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.saveScore = async function() {
+  const name = document.getElementById('playerName').value;
+  const score = window.finalScore || 0;
+
+  if (!name) return alert('הכנס שם');
+
+  await addDoc(collection(db, 'scores'), {
+    name,
+    score,
+    date: Date.now()
+  });
+
+  loadLeaderboard();
+};
+
+async function loadLeaderboard() {
+  const q = query(collection(db, 'scores'), orderBy('score','desc'), limit(10));
+  const snapshot = await getDocs(q);
+
+  let html = '<h3>🏆 לוח שיאים</h3>';
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    html += `<div>${d.name} — ${d.score}</div>`;
+  });
+
+  document.getElementById('leaderboard').innerHTML = html;
+}
+
+window.shareGame = function() {
+  const url = window.location.href;
+  const text = 'שחקו במשחק שלי 🎮';
+  window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`);
+}
+
+window.showGameOverUI = function(score) {
+  window.finalScore = score;
+  document.getElementById('finalScore').innerText = score;
+  document.getElementById('gameOver').style.display = 'block';
+  loadLeaderboard();
+}
+
+</script>
+
+<!-- IMPORTANT -->
+<!-- בתוך הקוד הקיים שלך, בפונקציה showGameOver(): -->
+<!-- תוסיף: window.showGameOverUI(score); -->
+
+</body>
+</html>
